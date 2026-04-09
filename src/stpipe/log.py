@@ -7,6 +7,7 @@ import logging
 import os
 import pathlib
 import sys
+import threading
 import warnings
 from contextlib import contextmanager
 
@@ -325,8 +326,49 @@ class RecordingHandler(logging.Handler):
             self._log_records.append(self.formatter.format(record))
 
 
+class RecordingContext(threading.local):
+    def __init__(self):
+        self._depth = 0
+
+    def _setup(self, log_names, level=logging.NOTSET, formatter=None):
+        if self._depth != 0:
+            return
+        handler = RecordingHandler(level=level)
+        handler.setFormatter(formatter)
+        for log_name in log_names:
+            logger = logging.getLogger(log_name)
+            logger.addHandler(handler)
+        self.handler = handler
+        self.log_names = log_names
+
+    def _teardown(self):
+        if self._depth != 0:
+            return
+        for log_name in self.log_names:
+            logger = logging.getLogger(log_name)
+            logger.removeHandler(self.handler)
+
+    def __enter__(self):
+        self._depth += 1
+        return self.handler.log_records
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._depth -= 1
+        self._teardown()
+
+
+_log_context = RecordingContext()
+
+
 @contextmanager
 def record_logs(log_names, level=logging.NOTSET, formatter=None):
+    _log_context._setup(log_names, level, formatter)
+    with _log_context as log_records:
+        yield log_records
+
+
+@contextmanager
+def old_record_logs(log_names, level=logging.NOTSET, formatter=None):
     if formatter is None:
         yield []
     else:
