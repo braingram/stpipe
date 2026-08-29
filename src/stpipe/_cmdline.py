@@ -65,6 +65,22 @@ def _print_parser_error(parser, error):
     parser.print_help()
 
 
+def new_step_from_cmdline(args):
+    # parse args only to sort out:
+    # - cfg_or_class: first argument, could be config file or a class name
+    # - --disable-crds-steppars
+    # - --save-parameters (how to handle this with call?)
+    # - --debug
+    # - --log-level --log-file --log-stream (needs to be configured outside call)
+    #
+    # we can't handle this with call any more so instead we can reproduce
+    # some of call here as long as we:
+    # - configure the logger
+    # - disable crds steppars: can be passed to get_config_from_reference
+    # - save parameters: can be used before instance.run
+    # - debug: wrap instance.run
+
+
 def step_from_cmdline(args):
     """
     Create a step from a configuration file and run it.
